@@ -8,6 +8,7 @@ import { fal } from "@fal-ai/client";
 fal.config({ proxyUrl: "/api/fal/proxy" });
 
 const STYLES = [
+  { emo: "🏙️", title: "Billboard 3D", sub: "Sale del cartel gigante", prompt: "Anamorphic 3D billboard advertisement on a huge curved LED screen wrapping a building corner in a busy city like Times Square, the product bursts out of the screen toward the viewer with a hyper-realistic 3D illusion, dramatic depth, the product appears to extend beyond the screen edges, cinematic, photorealistic, people and traffic below" },
   { emo: "🧊", title: "Acercamiento 3D", sub: "Zoom con profundidad", prompt: "Slow gentle camera push-in toward the product with a strong three-dimensional sense of depth, parallax and volume, the product feels like it subtly comes forward toward the viewer, the product stays completely intact, solid, sharp and undistorted at all times, it must not break, crack, split, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
   { emo: "🔄", title: "Giro 360°", sub: "Producto rotando", prompt: "Slow smooth 360 degree turntable rotation of the product, fixed camera, clean studio lighting, the product stays perfectly sharp and undistorted, cinematic advertising shot" },
   { emo: "🎬", title: "Zoom cine", sub: "Acercamiento dramático", prompt: "Slow cinematic dolly push-in toward the product, shallow depth of field, elegant premium lighting, the product stays perfectly sharp and undistorted" },
@@ -89,7 +90,8 @@ export default function Home() {
     try {
       const imageUrl = await fal.storage.upload(file);
       const basePrompt = [desc.trim(), STYLES[styleIdx].prompt, PROMPT_SUFFIX].filter(Boolean).join(". ");
-      const useAudio = audioOn;
+      const isBillboard = styleIdx === 0;
+      const useAudio = audioOn || isBillboard; // el billboard 3D queda mejor con Veo
 
       let model, input;
       if (useAudio) {
