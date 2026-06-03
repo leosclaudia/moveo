@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { fal } from "@fal-ai/client";
 
 fal.config({ proxyUrl: "/api/fal/proxy" });
@@ -67,6 +67,15 @@ export default function Home() {
   const [exporting, setExporting] = useState(false);
 
   const [openSec, setOpenSec] = useState("prod");
+  const [history, setHistory] = useState([]);
+
+  // cargar historial guardado al iniciar
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("moveo_history") || "[]");
+      if (Array.isArray(saved)) setHistory(saved);
+    } catch (e) {}
+  }, []);
   const [texts, setTexts] = useState([newText()]);
   const [activeId, setActiveId] = useState(texts[0]?.id);
 
@@ -142,6 +151,18 @@ export default function Home() {
       const url = result?.data?.video?.url || result?.data?.video_url;
       if (!url) throw new Error("La respuesta no trajo un video. Probá de nuevo.");
       setVideoUrl(url); setStatus("done"); setCredits((c) => Math.max(0, c - 1));
+      const item = {
+        url,
+        model: isBillboard ? "Veo 3.1" : "Kling 2.1",
+        style: STYLES[styleIdx].title,
+        ratio,
+        date: new Date().toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+      };
+      setHistory((prev) => {
+        const next = [item, ...prev].slice(0, 20);
+        try { localStorage.setItem("moveo_history", JSON.stringify(next)); } catch (e) {}
+        return next;
+      });
     } catch (err) {
       console.error(err);
       setErrMsg(err?.message || "Algo falló al generar. Revisá tu crédito en fal.ai.");
@@ -188,23 +209,40 @@ export default function Home() {
       rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       const stopped = new Promise((res) => (rec.onstop = res));
 
-      const sizeFrac = { s: 0.05, m: 0.078, l: 0.11 };
+      const sizeFrac = { s: 0.045, m: 0.07, l: 0.10 };
+      function wrapLines(text, maxW) {
+        const words = text.split(/\s+/);
+        const lines = []; let cur = "";
+        for (const w of words) {
+          const test = cur ? cur + " " + w : w;
+          if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+          else cur = test;
+        }
+        if (cur) lines.push(cur);
+        return lines;
+      }
       function drawTexts() {
+        const maxW = W * 0.9;
         activeTexts.forEach((t) => {
           const fpx = sizeFrac[t.size] * H;
-          const fam = t.font;
-          ctx.font = `${t.italic ? "italic " : ""}${t.bold ? "800" : "400"} ${fpx}px ${fam}`;
+          ctx.font = `${t.italic ? "italic " : ""}${t.bold ? "800" : "400"} ${fpx}px ${t.font}`;
           ctx.textAlign = "center"; ctx.textBaseline = "middle";
-          ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = fpx * 0.35;
-          ctx.fillStyle = t.color;
-          const px = (t.x / 100) * W, py = (t.y / 100) * H;
-          ctx.fillText(t.text, px, py);
-          if (t.underline) {
-            const w = ctx.measureText(t.text).width;
-            ctx.shadowBlur = 0; ctx.strokeStyle = t.color; ctx.lineWidth = fpx * 0.07;
-            ctx.beginPath(); ctx.moveTo(px - w / 2, py + fpx * 0.42); ctx.lineTo(px + w / 2, py + fpx * 0.42); ctx.stroke();
-          }
-          ctx.shadowBlur = 0;
+          const lines = wrapLines(t.text, maxW);
+          const lh = fpx * 1.14;
+          const px = (t.x / 100) * W, cy = (t.y / 100) * H;
+          const startY = cy - ((lines.length - 1) * lh) / 2;
+          lines.forEach((ln, idx) => {
+            const ly = startY + idx * lh;
+            ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = fpx * 0.35;
+            ctx.fillStyle = t.color;
+            ctx.fillText(ln, px, ly);
+            if (t.underline) {
+              const w = ctx.measureText(ln).width;
+              ctx.shadowBlur = 0; ctx.strokeStyle = t.color; ctx.lineWidth = fpx * 0.07;
+              ctx.beginPath(); ctx.moveTo(px - w / 2, ly + fpx * 0.42); ctx.lineTo(px + w / 2, ly + fpx * 0.42); ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+          });
         });
       }
 
@@ -232,6 +270,17 @@ export default function Home() {
     }
   }
 
+
+  function openFromHistory(item) {
+    setVideoUrl(item.url);
+    setStatus("done");
+    if (item.ratio) setRatio(item.ratio);
+  }
+  function clearHistory() {
+    if (!confirm("¿Borrar todo el historial? Los videos no descargados se perderán.")) return;
+    setHistory([]);
+    try { localStorage.removeItem("moveo_history"); } catch (e) {}
+  }
 
   return (
     <div className="wrap">
@@ -375,8 +424,46 @@ export default function Home() {
               ))}
               <button className="taddbtn" onClick={addText}>+ Agregar otro texto</button>
               <p style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 10, lineHeight: 1.4 }}>
-                👉 Arrastrá cada texto sobre el preview para ubicarlo. (Por ahora es guía visual: aún no queda grabado dentro del video.)
+                👉 Arrastrá cada texto sobre el preview para ubicarlo. Al descargar con "Descargar con texto", queda grabado dentro del video.
               </p>
+            </div>
+          </div>
+
+          {/* 5. HISTORIAL */}
+          <div className={"acc" + (openSec === "hist" ? " open" : "")}>
+            <div className="acc-head" onClick={() => toggle("hist")}>
+              <div className="num">★</div><h2>Historial</h2>
+              {history.length > 0 && <span className="done">{history.length}</span>}
+              <span className="chev">▼</span>
+            </div>
+            <div className="acc-body">
+              {history.length === 0 ? (
+                <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
+                  Acá van a quedar guardados tus últimos 20 videos generados, por si no llegaste a descargarlos.
+                </p>
+              ) : (
+                <>
+                  <div className="histgrid">
+                    {history.map((h, i) => (
+                      <div key={i} className="histitem">
+                        <video src={h.url} muted playsInline preload="metadata" onClick={() => openFromHistory(h)} />
+                        <div className="histinfo">
+                          <span>{h.style} · {h.ratio}</span>
+                          <small>{h.date}</small>
+                        </div>
+                        <div className="histbtns">
+                          <button onClick={() => openFromHistory(h)}>Ver</button>
+                          <a href={h.url} target="_blank" rel="noreferrer" download>Bajar</a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="tdel" onClick={clearHistory} style={{ marginTop: 12 }}>🗑 Vaciar historial</button>
+                  <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 8, lineHeight: 1.4 }}>
+                    Se guarda en este dispositivo. Los enlaces de fal duran un tiempo, así que descargá los que quieras conservar.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
