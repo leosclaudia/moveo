@@ -95,13 +95,10 @@ export default function Home() {
 
       let model, input;
       if (useAudio) {
-        model = "fal-ai/veo3/image-to-video";
-        input = {
-          image_url: imageUrl,
-          prompt: basePrompt,
-          aspect_ratio: ratio === "1:1" ? "auto" : ratio,
-          duration: String(dur) + "s",
-        };
+        // Veo 3.1: solo acepta image_url + prompt (+ aspect_ratio 16:9 o 9:16)
+        model = "fal-ai/veo3.1/image-to-video";
+        input = { image_url: imageUrl, prompt: basePrompt };
+        if (ratio === "16:9" || ratio === "9:16") input.aspect_ratio = ratio;
       } else {
         model = "fal-ai/kling-video/v2.1/standard/image-to-video";
         input = {
@@ -137,7 +134,7 @@ export default function Home() {
     }
   }
 
-  const modelLabel = audioOn ? "Veo 3.1" : "Kling 2.1";
+  const modelLabel = (audioOn || styleIdx === 0) ? "Veo 3.1" : "Kling 2.1";
 
   return (
     <div className="wrap">
