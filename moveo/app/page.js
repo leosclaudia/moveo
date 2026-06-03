@@ -8,7 +8,7 @@ import { fal } from "@fal-ai/client";
 fal.config({ proxyUrl: "/api/fal/proxy" });
 
 const STYLES = [
-  { emo: "💥", title: "Sale en 3D", sub: "Rompe la pantalla", prompt: "The product dramatically breaks out of its frame and pushes forward toward the viewer in a striking 3D out-of-bounds effect, parts of the product extend beyond the rectangular frame edges, strong sense of depth and perspective, the product itself stays perfectly sharp and undistorted, cinematic advertising shot" },
+  { emo: "💥", title: "Sale en 3D", sub: "Profundidad hacia vos", prompt: "The product gently moves forward toward the viewer with a strong sense of 3D depth and perspective, popping out of the screen, the camera adds dimensional volume, the product stays completely intact, solid, sharp and undistorted at all times, it must not break apart, crack, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
   { emo: "🔄", title: "Giro 360°", sub: "Producto rotando", prompt: "Slow smooth 360 degree turntable rotation of the product, fixed camera, clean studio lighting, the product stays perfectly sharp and undistorted, cinematic advertising shot" },
   { emo: "🎬", title: "Zoom cine", sub: "Acercamiento dramático", prompt: "Slow cinematic dolly push-in toward the product, shallow depth of field, elegant premium lighting, the product stays perfectly sharp and undistorted" },
   { emo: "✨", title: "Flotando", sub: "Con partículas", prompt: "The product floats and rotates very gently in the air, soft glowing particles drifting slowly around it, premium dreamy look, the product stays perfectly sharp and undistorted" },
@@ -16,7 +16,7 @@ const STYLES = [
 ];
 
 const PROMPT_SUFFIX = "Subtle realistic motion, smooth and slow, high quality commercial product video.";
-const NEGATIVE_PROMPT = "text, letters, words, captions, watermark, logo overlay, distortion, warping, melting, deformed product, blurry, low quality, glitch, extra objects";
+const NEGATIVE_PROMPT = "text, letters, words, captions, watermark, logo overlay, distortion, warping, melting, deformed product, breaking apart, cracking, exploding, falling apart, shattering, blurry, low quality, glitch, extra objects";
 
 const FORMATS = [
   { ratio: "9:16", box: "r916", label: "Reels · TikTok" },
