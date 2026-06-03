@@ -5,6 +5,7 @@ import { createRouteHandler } from "@fal-ai/server-proxy/nextjs";
 // allowedEndpoints limita qué modelos se pueden llamar desde Moveo.
 export const { GET, POST, PUT } = createRouteHandler({
   allowedEndpoints: [
+    "fal-ai/kling-video/**",
     "fal-ai/ltx-video/**",
     "fal-ai/veo3/**",
     "fal-ai/veo2/**",
