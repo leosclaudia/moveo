@@ -6,12 +6,12 @@ import { fal } from "@fal-ai/client";
 fal.config({ proxyUrl: "/api/fal/proxy" });
 
 const STYLES = [
-  { emo: "🏙️", title: "Billboard 3D", sub: "Sale del cartel gigante", prompt: "Photorealistic anamorphic 3D LED billboard wrapping a building corner in a busy city, the exact product shown in the input image bursts forward out of the curved screen toward the viewer with a hyper-realistic 3D out-of-bounds illusion and dramatic depth, the product keeps its real shape, color and texture from the photo, ultra detailed, realistic city lighting at dusk, pedestrians and traffic below, no on-screen text, clean screen background" },
-  { emo: "🧊", title: "Acercamiento 3D", sub: "Zoom con profundidad", prompt: "Slow gentle camera push-in toward the product with a strong three-dimensional sense of depth, parallax and volume, the product feels like it subtly comes forward toward the viewer, the product stays completely intact, solid, sharp and undistorted at all times, it must not break, crack, split, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
-  { emo: "🎬", title: "Zoom cine", sub: "Acercamiento dramático", prompt: "Slow cinematic dolly push-in toward the product, shallow depth of field, elegant premium lighting, the product stays perfectly sharp and undistorted" },
-  { emo: "🔄", title: "Giro 360°", sub: "Producto rotando", prompt: "Slow smooth 360 degree turntable rotation of the product, fixed camera, clean studio lighting, the product stays perfectly sharp and undistorted, cinematic advertising shot" },
-  { emo: "✨", title: "Flotando", sub: "Con partículas", prompt: "The product floats and rotates very gently in the air, soft glowing particles drifting slowly around it, premium dreamy look, the product stays perfectly sharp and undistorted" },
-  { emo: "🌟", title: "Revelado", sub: "Sale de la sombra", prompt: "Dramatic product reveal, warm light gradually illuminates the product emerging from darkness, slow elegant camera motion, the product stays perfectly sharp and undistorted" },
+  { emo: "🏙️", title: "Billboard 3D", sub: "Sale del cartel gigante", cost: "premium", prompt: "Photorealistic anamorphic 3D LED billboard wrapping a building corner in a busy city, the exact product shown in the input image bursts forward out of the curved screen toward the viewer with a hyper-realistic 3D out-of-bounds illusion and dramatic depth, the product keeps its real shape, color and texture from the photo, ultra detailed, realistic city lighting at dusk, pedestrians and traffic below, no on-screen text, clean screen background" },
+  { emo: "🧊", title: "Acercamiento 3D", sub: "Zoom con profundidad", cost: "eco", prompt: "Slow gentle camera push-in toward the product with a strong three-dimensional sense of depth, parallax and volume, the product feels like it subtly comes forward toward the viewer, the product stays completely intact, solid, sharp and undistorted at all times, it must not break, crack, split, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
+  { emo: "🎬", title: "Zoom cine", sub: "Acercamiento dramático", cost: "eco", prompt: "Slow cinematic dolly push-in toward the product, shallow depth of field, elegant premium lighting, the product stays perfectly sharp and undistorted" },
+  { emo: "🔄", title: "Giro 360°", sub: "Producto rotando", cost: "eco", prompt: "Slow smooth 360 degree turntable rotation of the product, fixed camera, clean studio lighting, the product stays perfectly sharp and undistorted, cinematic advertising shot" },
+  { emo: "✨", title: "Flotando", sub: "Con partículas", cost: "eco", prompt: "The product floats and rotates very gently in the air, soft glowing particles drifting slowly around it, premium dreamy look, the product stays perfectly sharp and undistorted" },
+  { emo: "🌟", title: "Revelado", sub: "Sale de la sombra", cost: "eco", prompt: "Dramatic product reveal, warm light gradually illuminates the product emerging from darkness, slow elegant camera motion, the product stays perfectly sharp and undistorted" },
 ];
 
 const PROMPT_SUFFIX = "Subtle realistic motion, smooth and slow, high quality commercial product video.";
@@ -64,15 +64,16 @@ export default function Home() {
   const [logLine, setLogLine] = useState("Esto tarda 1-2 minutos");
   const [errMsg, setErrMsg] = useState("");
   const [credits, setCredits] = useState(3);
+  const [exporting, setExporting] = useState(false);
 
-  const [open, setOpen] = useState({ prod: true, estilo: false, formato: false, texto: false });
+  const [openSec, setOpenSec] = useState("prod");
   const [texts, setTexts] = useState([newText()]);
   const [activeId, setActiveId] = useState(texts[0]?.id);
 
   const stageRef = useRef(null);
   const dragId = useRef(null);
 
-  function toggle(k) { setOpen((o) => ({ ...o, [k]: !o[k] })); }
+  function toggle(k) { setOpenSec((s) => (s === k ? null : k)); }
 
   function onFile(e) {
     const f = e.target.files?.[0];
@@ -150,9 +151,91 @@ export default function Home() {
 
   const modelLabel = styleIdx === 0 ? "Veo 3.1" : "Kling 2.1";
 
+  function plainDownload() {
+    const a = document.createElement("a");
+    a.href = videoUrl; a.download = "moveo-video.mp4"; a.target = "_blank";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  async function downloadWithText() {
+    if (!videoUrl) return;
+    const activeTexts = texts.filter((t) => t.text);
+    if (activeTexts.length === 0) { plainDownload(); return; }
+
+    setExporting(true);
+    try {
+      if (typeof MediaRecorder === "undefined") throw new Error("nomr");
+      await document.fonts.ready;
+
+      const video = document.createElement("video");
+      video.crossOrigin = "anonymous";
+      video.muted = true; video.playsInline = true; video.src = videoUrl;
+
+      await new Promise((res, rej) => {
+        video.onloadedmetadata = res;
+        video.onerror = () => rej(new Error("cors"));
+        setTimeout(() => rej(new Error("timeout")), 15000);
+      });
+
+      const W = video.videoWidth, H = video.videoHeight;
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+
+      const stream = canvas.captureStream(30);
+      const rec = new MediaRecorder(stream, { mimeType: "video/webm" });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      const stopped = new Promise((res) => (rec.onstop = res));
+
+      const sizeFrac = { s: 0.05, m: 0.078, l: 0.11 };
+      function drawTexts() {
+        activeTexts.forEach((t) => {
+          const fpx = sizeFrac[t.size] * H;
+          const fam = t.font;
+          ctx.font = `${t.italic ? "italic " : ""}${t.bold ? "800" : "400"} ${fpx}px ${fam}`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.shadowColor = "rgba(0,0,0,.75)"; ctx.shadowBlur = fpx * 0.35;
+          ctx.fillStyle = t.color;
+          const px = (t.x / 100) * W, py = (t.y / 100) * H;
+          ctx.fillText(t.text, px, py);
+          if (t.underline) {
+            const w = ctx.measureText(t.text).width;
+            ctx.shadowBlur = 0; ctx.strokeStyle = t.color; ctx.lineWidth = fpx * 0.07;
+            ctx.beginPath(); ctx.moveTo(px - w / 2, py + fpx * 0.42); ctx.lineTo(px + w / 2, py + fpx * 0.42); ctx.stroke();
+          }
+          ctx.shadowBlur = 0;
+        });
+      }
+
+      rec.start();
+      await video.play();
+      function loop() {
+        ctx.drawImage(video, 0, 0, W, H);
+        drawTexts();
+        if (!video.ended) requestAnimationFrame(loop);
+        else rec.stop();
+      }
+      loop();
+      await stopped;
+
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = "moveo-con-texto.webm";
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) {
+      console.error(e);
+      alert("No pude grabar el texto dentro del video (suele ser por permisos del servidor de video). Te descargo el video sin texto y podés sumarlo en una app de edición.");
+      plainDownload();
+    } finally {
+      setExporting(false);
+    }
+  }
+
+
   return (
     <div className="wrap">
-      <header>
+      <header className="topbar">
         <div className="brand">
           <div className="logo">
             <svg viewBox="0 0 24 24" fill="none">
@@ -160,21 +243,25 @@ export default function Home() {
               <path d="M14 8l6 4-6 4V8z" fill="#0a0b0d" opacity=".55" />
             </svg>
           </div>
-          <div className="wordmark">Mov<span>eo</span></div>
+          <div className="brand-txt">
+            <div className="wordmark">Mov<span>eo</span></div>
+            <div className="tag">STUDIO</div>
+          </div>
         </div>
-        <div className="credits">⚡ <b>{credits}</b> créditos</div>
+        <div className="topbar-actions">
+          <div className="credits">⚡ <b>{credits}</b></div>
+          <button className="gen gen-top" onClick={generate} disabled={status === "loading"}>
+            {status === "loading" ? "Generando..." : "▶ Generar"}
+          </button>
+        </div>
       </header>
-
-      <div className="hero">
-        <h1>Tu producto, <em>en movimiento.</em></h1>
-      </div>
 
       <div className="layout">
         {/* ===== CONTROLES (acordeón) ===== */}
         <div className="controls">
 
           {/* 1. PRODUCTO */}
-          <div className={"acc" + (open.prod ? " open" : "")}>
+          <div className={"acc" + (openSec === "prod" ? " open" : "")}>
             <div className="acc-head" onClick={() => toggle("prod")}>
               <div className="num">1</div><h2>Tu producto</h2>
               {file && <span className="done">✓</span>}
@@ -201,7 +288,7 @@ export default function Home() {
           </div>
 
           {/* 2. ESTILO */}
-          <div className={"acc" + (open.estilo ? " open" : "")}>
+          <div className={"acc" + (openSec === "estilo" ? " open" : "")}>
             <div className="acc-head" onClick={() => toggle("estilo")}>
               <div className="num">2</div><h2>Estilo de animación</h2>
               <span className="chev">▼</span>
@@ -212,6 +299,7 @@ export default function Home() {
                   <div key={i} className={"chip" + (i === styleIdx ? " sel" : "")} onClick={() => setStyleIdx(i)}>
                     <span className="emo">{s.emo}</span>
                     <span className="t">{s.title}<small>{s.sub}</small></span>
+                    <span className={"costbadge " + s.cost}>{s.cost === "premium" ? "~$3" : "~$0.28"}</span>
                   </div>
                 ))}
               </div>
@@ -229,7 +317,7 @@ export default function Home() {
           </div>
 
           {/* 3. FORMATO */}
-          <div className={"acc" + (open.formato ? " open" : "")}>
+          <div className={"acc" + (openSec === "formato" ? " open" : "")}>
             <div className="acc-head" onClick={() => toggle("formato")}>
               <div className="num">3</div><h2>Formato y duración</h2>
               <span className="chev">▼</span>
@@ -252,7 +340,7 @@ export default function Home() {
           </div>
 
           {/* 4. TEXTO */}
-          <div className={"acc" + (open.texto ? " open" : "")}>
+          <div className={"acc" + (openSec === "texto" ? " open" : "")}>
             <div className="acc-head" onClick={() => toggle("texto")}>
               <div className="num">4</div><h2>Texto en el video</h2>
               <span className="chev">▼</span>
@@ -327,19 +415,39 @@ export default function Home() {
               </div>
             </div>
 
-            <button className="gen" onClick={generate} disabled={status === "loading"}>
+            <div className="costhint">
+              {STYLES[styleIdx].cost === "premium"
+                ? "💎 Estilo premium (Veo 3.1) · ~$3 por video"
+                : "💚 Estilo económico (Kling 2.1) · ~$0.28 por video"}
+            </div>
+            <button className="gen gen-inline" onClick={generate} disabled={status === "loading"}>
               {status === "loading" ? "Generando..." : "Generar animación ✨"}
             </button>
 
             {status === "done" && (
               <div className="result-info" style={{ marginTop: 12, borderRadius: 12 }}>
                 <div className="meta">Modelo: <b>{modelLabel}</b> · <b>{ratio}</b></div>
-                <a className="dl" href={videoUrl} target="_blank" rel="noreferrer" download>Descargar</a>
+                <button className="dl" onClick={downloadWithText} disabled={exporting}>
+                  {exporting ? "Grabando texto..." : (texts.some((t) => t.text) ? "Descargar con texto" : "Descargar")}
+                </button>
               </div>
             )}
             {status === "error" && <div className="err"><b>Ups.</b> {errMsg}</div>}
           </div>
         </div>
+      </div>
+
+      {/* barra inferior fija (celular) */}
+      <div className="mobilebar">
+        {status === "done" ? (
+          <button className="gen" onClick={downloadWithText} disabled={exporting}>
+            {exporting ? "Grabando texto..." : (texts.some((t) => t.text) ? "⬇ Descargar con texto" : "⬇ Descargar")}
+          </button>
+        ) : (
+          <button className="gen" onClick={generate} disabled={status === "loading"}>
+            {status === "loading" ? "Generando..." : "▶ Generar animación"}
+          </button>
+        )}
       </div>
     </div>
   );
