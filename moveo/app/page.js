@@ -8,7 +8,7 @@ import { fal } from "@fal-ai/client";
 fal.config({ proxyUrl: "/api/fal/proxy" });
 
 const STYLES = [
-  { emo: "💥", title: "Sale en 3D", sub: "Profundidad hacia vos", prompt: "The product gently moves forward toward the viewer with a strong sense of 3D depth and perspective, popping out of the screen, the camera adds dimensional volume, the product stays completely intact, solid, sharp and undistorted at all times, it must not break apart, crack, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
+  { emo: "🧊", title: "Acercamiento 3D", sub: "Zoom con profundidad", prompt: "Slow gentle camera push-in toward the product with a strong three-dimensional sense of depth, parallax and volume, the product feels like it subtly comes forward toward the viewer, the product stays completely intact, solid, sharp and undistorted at all times, it must not break, crack, split, melt or deform, smooth realistic motion, cinematic premium advertising shot" },
   { emo: "🔄", title: "Giro 360°", sub: "Producto rotando", prompt: "Slow smooth 360 degree turntable rotation of the product, fixed camera, clean studio lighting, the product stays perfectly sharp and undistorted, cinematic advertising shot" },
   { emo: "🎬", title: "Zoom cine", sub: "Acercamiento dramático", prompt: "Slow cinematic dolly push-in toward the product, shallow depth of field, elegant premium lighting, the product stays perfectly sharp and undistorted" },
   { emo: "✨", title: "Flotando", sub: "Con partículas", prompt: "The product floats and rotates very gently in the air, soft glowing particles drifting slowly around it, premium dreamy look, the product stays perfectly sharp and undistorted" },
@@ -249,6 +249,7 @@ export default function Home() {
                   ))}
                 </div>
                 <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>👉 Arrastrá el texto sobre el video para ubicarlo donde quieras.</p>
+                <p style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 6, lineHeight: 1.4 }}>⚠️ El texto se ve acá como guía, pero todavía no queda grabado dentro del video descargado ni en pantalla completa.</p>
               </>
             )}
           </div>
